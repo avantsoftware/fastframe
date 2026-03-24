@@ -20,7 +20,9 @@ class UserSerializer < Fastframe::Frame
   field :id
   field :name
   field :email
-  field(:member_since) { |user| user.created_at.year }
+  field :member_since do |user|
+    user.created_at.year
+  end
 
   association :posts do
     field :id
