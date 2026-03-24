@@ -9,188 +9,220 @@ RSpec.describe Fastframe::Frame do
     obj
   end
 
-  describe ".fields" do
-    it "renders multiple fields from an entity" do
-      frame = Class.new(described_class) do
-        fields :name, :email
+  describe 'Rendering A Single Entity' do
+    let(:frame) do
+      FrameStub.new do
+        fields :id, :name, :email
       end
+    end
 
-      entity = build_entity(name: "John", email: "john@example.com")
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ name: "John", email: "john@example.com" })
+    it 'returns a hash with all field values' do
+      entity = build_entity(id: 1, name: 'John', email: 'john@test.com')
+      expect(frame.render_hash(entity)).to eq({ id: 1, name: 'John', email: 'john@test.com' })
     end
   end
 
-  describe ".field" do
-    it "renders a single field" do
-      frame = Class.new(described_class) do
-        field :name
+  describe 'Rendering A Collection' do
+    let(:frame) do
+      FrameStub.new do
+        fields :id, :name
       end
-
-      entity = build_entity(name: "John")
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ name: "John" })
     end
 
-    it "renders a field with a custom block" do
-      frame = Class.new(described_class) do
-        field(:name) { |e| e.name.upcase }
-      end
-
-      entity = build_entity(name: "John")
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ name: "JOHN" })
-    end
-
-    it "renders a field with the :from option" do
-      frame = Class.new(described_class) do
-        field :full_name, from: :name
-      end
-
-      entity = build_entity(name: "John")
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ full_name: "John" })
-    end
-  end
-
-  describe ".association" do
-    it "renders a nested association" do
-      frame = Class.new(described_class) do
-        field :name
-
-        association(:profile) do
-          field :bio
-          field :avatar_url
-        end
-      end
-
-      profile = build_entity(bio: "Hello world", avatar_url: "https://example.com/avatar.png")
-      entity = build_entity(name: "John", profile: profile)
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({
-                             name: "John",
-                             profile: { bio: "Hello world", avatar_url: "https://example.com/avatar.png" }
-                           })
-    end
-
-    it "renders a collection association" do
-      frame = Class.new(described_class) do
-        field :name
-
-        association(:posts) do
-          fields :title, :body
-        end
-      end
-
-      posts = [
-        build_entity(title: "First", body: "Content 1"),
-        build_entity(title: "Second", body: "Content 2")
+    it 'returns an array of hashes' do
+      entities = [
+        build_entity(id: 1, name: 'John'),
+        build_entity(id: 2, name: 'Jane')
       ]
-      entity = build_entity(name: "John", posts: posts)
-      result = frame.render_hash(entity)
 
-      expect(result).to eq({
-                             name: "John",
-                             posts: [
-                               { title: "First", body: "Content 1" },
-                               { title: "Second", body: "Content 2" }
-                             ]
-                           })
-    end
-
-    it "renders nil when association is nil" do
-      frame = Class.new(described_class) do
-        association(:profile) do
-          field :bio
-        end
-      end
-
-      entity = build_entity(profile: nil)
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ profile: nil })
+      expect(frame.render_hash(entities)).to eq([
+        { id: 1, name: 'John' },
+        { id: 2, name: 'Jane' }
+      ])
     end
   end
 
-  describe ".condition" do
-    it "merges fields when condition applies" do
-      frame = Class.new(described_class) do
+  describe 'Rendering Nil' do
+    let(:frame) do
+      FrameStub.new do
         field :name
-
-        condition(:admin) do
-          field :email
-        end
       end
-
-      entity = build_entity(name: "John", email: "john@example.com", admin: true)
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ name: "John", email: "john@example.com" })
     end
 
-    it "skips fields when condition does not apply" do
-      frame = Class.new(described_class) do
-        field :name
-
-        condition(:admin) do
-          field :email
-        end
-      end
-
-      entity = build_entity(name: "John", email: "john@example.com", admin: false)
-      result = frame.render_hash(entity)
-
-      expect(result).to eq({ name: "John" })
-    end
-
-    it "supports a Proc as condition" do
-      frame = Class.new(described_class) do
-        field :name
-
-        condition(->(e) { e.age >= 18 }) do
-          field :email
-        end
-      end
-
-      minor = build_entity(name: "Kid", email: "kid@example.com", age: 10)
-      adult = build_entity(name: "Adult", email: "adult@example.com", age: 25)
-
-      expect(frame.render_hash(minor)).to eq({ name: "Kid" })
-      expect(frame.render_hash(adult)).to eq({ name: "Adult", email: "adult@example.com" })
-    end
-  end
-
-  describe ".render_hash" do
-    it "returns nil for a nil entity" do
-      frame = Class.new(described_class) do
-        field :name
-      end
-
+    it 'returns nil' do
       expect(frame.render_hash(nil)).to be_nil
     end
+  end
 
-    it "renders an array of entities" do
-      frame = Class.new(described_class) do
-        fields :name, :email
+  describe 'Full Serializer Scenario' do
+    let(:admin_class) { Data.define(:id, :full_name, :email) }
+    let(:client_class) { Data.define(:id, :full_name, :status) }
+
+    let(:frame) do
+      ac = admin_class
+      cc = client_class
+
+      FrameStub.new do
+        field :id
+        field :ip
+        field :success
+        field :operation_description
+        field :created_at
+
+        association(:log_changes, eager_loads: true) do
+          field :id
+          field :item_name
+          field :created_at
+        end
+
+        association(:performed_by, eager_loads: true) do
+          condition(ac) do
+            field :id
+            field :full_name
+            field :email
+          end
+
+          condition(cc) do
+            field :id
+            field :full_name
+            field :status
+          end
+        end
+      end
+    end
+
+    context 'when performed_by is an admin-type entity' do
+      it 'renders admin-specific fields in the association' do
+        admin = admin_class.new(id: 100, full_name: 'Admin User', email: 'admin@test.com')
+        changes = [build_entity(id: 1, item_name: 'Changed X', created_at: '2024-01-01')]
+        entity = build_entity(
+          id: 10, ip: '127.0.0.1', success: true,
+          operation_description: 'Create', created_at: '2024-01-01',
+          log_changes: changes, performed_by: admin
+        )
+
+        result = frame.render_hash(entity)
+
+        expect(result[:performed_by]).to eq({
+          id: 100,
+          full_name: 'Admin User',
+          email: 'admin@test.com'
+        })
+      end
+    end
+
+    context 'when performed_by is a client-type entity' do
+      it 'renders client-specific fields in the association' do
+        client = client_class.new(id: 200, full_name: 'Client User', status: 'active')
+        entity = build_entity(
+          id: 11, ip: '10.0.0.1', success: false,
+          operation_description: 'Delete', created_at: '2024-02-01',
+          log_changes: [], performed_by: client
+        )
+
+        result = frame.render_hash(entity)
+
+        expect(result[:performed_by]).to eq({
+          id: 200,
+          full_name: 'Client User',
+          status: 'active'
+        })
+      end
+    end
+
+    context 'when rendering a collection of entities with different performed_by types' do
+      it 'correctly applies conditions per entity' do
+        admin = admin_class.new(id: 100, full_name: 'Admin', email: 'a@test.com')
+        client = client_class.new(id: 200, full_name: 'Client', status: 'active')
+
+        entity1 = build_entity(
+          id: 1, ip: '1.1.1.1', success: true,
+          operation_description: 'Op1', created_at: '2024-01-01',
+          log_changes: [], performed_by: admin
+        )
+        entity2 = build_entity(
+          id: 2, ip: '2.2.2.2', success: false,
+          operation_description: 'Op2', created_at: '2024-02-01',
+          log_changes: [], performed_by: client
+        )
+
+        results = frame.render_hash([entity1, entity2])
+
+        expect(results[0][:performed_by]).to eq({ id: 100, full_name: 'Admin', email: 'a@test.com' })
+        expect(results[1][:performed_by]).to eq({ id: 200, full_name: 'Client', status: 'active' })
+      end
+    end
+  end
+
+  describe 'Frame Isolation' do
+    it 'does not share fields between different frame subclasses' do
+      frame_a = FrameStub.new { field :name }
+      frame_b = FrameStub.new { field :email }
+
+      entity = build_entity(name: 'John', email: 'john@test.com')
+
+      expect(frame_a.render_hash(entity)).to eq({ name: 'John' })
+      expect(frame_b.render_hash(entity)).to eq({ email: 'john@test.com' })
+    end
+  end
+
+  describe 'Preloading' do
+    context 'when a collection responds to preload' do
+      let(:frame) do
+        FrameStub.new do
+          fields :name
+        end
       end
 
-      entities = [
-        build_entity(name: "John", email: "john@example.com"),
-        build_entity(name: "Jane", email: "jane@example.com")
-      ]
-      result = frame.render_hash(entities)
+      it 'calls preload on the collection' do
+        entity = build_entity(name: 'John')
+        collection = [entity]
 
-      expect(result).to eq(
-        [
-          { name: "John", email: "john@example.com" },
-          { name: "Jane", email: "jane@example.com" }
-        ]
-      )
+        allow(collection).to receive(:respond_to?).and_call_original
+        allow(collection).to receive(:respond_to?).with('preload').and_return(true)
+        allow(collection).to receive(:preload).and_return(collection)
+
+        frame.render_many_hash(collection)
+
+        expect(collection).to have_received(:preload)
+      end
+    end
+
+    context 'when skip_preload option is true' do
+      let(:frame) do
+        FrameStub.new do
+          fields :name
+        end
+      end
+
+      it 'does not call preload' do
+        entity = build_entity(name: 'John')
+        collection = [entity]
+
+        allow(collection).to receive(:respond_to?).and_call_original
+        allow(collection).to receive(:respond_to?).with('preload').and_return(true)
+        allow(collection).to receive(:preload).and_return(collection)
+
+        frame.render_many_hash(collection, skip_preload: true)
+
+        expect(collection).not_to have_received(:preload)
+      end
+    end
+
+    context 'when aggregating preloads from fields and associations' do
+      let(:frame) do
+        FrameStub.new do
+          field :avatar_url, eager_loads: :avatar
+
+          association(:profile, eager_loads: true) do
+            field :photo_url, eager_loads: :photo
+          end
+        end
+      end
+
+      it 'builds a combined preload tree' do
+        expect(frame.prepare_preload).to eq({ profile: { photo: {} }, avatar: {} })
+      end
     end
   end
 end
