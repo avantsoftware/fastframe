@@ -17,12 +17,15 @@ Stop writing serializer classes that are longer than your models. Fastframe lets
 
 ```ruby
 class UserSerializer < Fastframe::Frame
-  fields :id, :name, :email
-
+  field :id
+  field :name
+  field :email
   field(:member_since) { |user| user.created_at.year }
 
   association :posts do
-    fields :id, :title, :published_at
+    field :id
+    field :title
+    field :published_at
   end
 end
 
@@ -96,17 +99,25 @@ Define nested serializers **inline**. No separate classes. No wiring. Just nest 
 
 ```ruby
 class OrderSerializer < Fastframe::Frame
-  fields :id, :status, :total
+  field :id
+  field :status
+  field :total
 
   association :customer do
-    fields :id, :name, :email
+    field :id
+    field :name
+    field :email
   end
 
   association :line_items do
-    fields :id, :quantity, :unit_price
+    field :id
+    field :quantity
+    field :unit_price
 
     association :product do
-      fields :id, :name, :sku
+      field :id
+      field :name
+      field :sku
     end
   end
 end
@@ -128,16 +139,21 @@ Use `:from` to read from a different method, or pass a **lambda** for full contr
 
 ```ruby
 class PostSerializer < Fastframe::Frame
-  fields :id, :title
+  field :id
+  field :title
 
   # Read from a different method
   association :image, from: :featured_image do
-    fields :id, :url, :alt_text
+    field :id
+    field :url
+    field :alt_text
   end
 
   # Lambda for custom resolution
   association :recent_comments, from: ->(post) { post.comments.order(created_at: :desc).limit(5) } do
-    fields :id, :body, :author_name
+    field :id
+    field :body
+    field :author_name
   end
 end
 ```
@@ -150,20 +166,29 @@ This is where Fastframe shines. Conditionally include fields based on the entity
 
 ```ruby
 class ActivitySerializer < Fastframe::Frame
-  fields :id, :action, :created_at
+  field :id
+  field :action
+  field :created_at
 
   association :actor do
     # Each type gets its own fields -- no case statements, no type checking
     condition Admin::User do
-      fields :id, :full_name, :email, :role
+      field :id
+      field :full_name
+      field :email
+      field :role
     end
 
     condition Client::User do
-      fields :id, :full_name, :company_name
+      field :id
+      field :full_name
+      field :company_name
     end
 
     condition Pos::Machine do
-      fields :id, :reference_number, :location
+      field :id
+      field :reference_number
+      field :location
     end
   end
 end
@@ -175,10 +200,13 @@ Fastframe checks `entity.is_a?(Class)` and merges only the matching fields. Subc
 
 ```ruby
 class UserSerializer < Fastframe::Frame
-  fields :id, :name
+  field :id
+  field :name
 
   condition :admin? do
-    fields :email, :permissions, :last_sign_in_at
+    field :email
+    field :permissions
+    field :last_sign_in_at
   end
 
   condition :premium? do
@@ -195,7 +223,8 @@ end
 
 ```ruby
 class UserSerializer < Fastframe::Frame
-  fields :id, :name
+  field :id
+  field :name
 
   condition ->(user) { user.age >= 18 } do
     field :email
@@ -209,17 +238,23 @@ N+1 queries killed your last deploy? Fastframe builds the preload tree for you.
 
 ```ruby
 class InvoiceSerializer < Fastframe::Frame
-  fields :id, :number, :total
+  field :id
+  field :number
+  field :total
 
   association :customer, eager_loads: true do
-    fields :id, :name
+    field :id
+    field :name
   end
 
   association :line_items, eager_loads: true do
-    fields :id, :description, :amount
+    field :id
+    field :description
+    field :amount
 
     association :product, eager_loads: true do
-      fields :id, :name
+      field :id
+      field :name
       field :thumbnail_url, eager_loads: :thumbnail  # eager load a specific relation
     end
   end
@@ -238,7 +273,8 @@ You can also use `:from` with `:eager_loads` when the preload key differs from t
 
 ```ruby
 association :image, from: :file_attachment, eager_loads: :file_attachment do
-  fields :id, :content_type
+  field :id
+  field :content_type
 end
 ```
 
@@ -271,14 +307,21 @@ A complete serializer from a production API:
 
 ```ruby
 class Admin::Log::RequestSerializer < Fastframe::Frame
-  fields :id, :ip, :user_agent, :domain, :success
+  field :id
+  field :ip
+  field :user_agent
+  field :domain
+  field :success
   field :operation_description
   field :error_string
   field :created_at
 
   association :log_changes, eager_loads: true do
-    fields :id, :item_name, :item_id, :created_at
+    field :id
+    field :item_name
+    field :item_id
     field :object_changes_translated
+    field :created_at
   end
 
   association :log_reason, eager_loads: true do
@@ -295,19 +338,28 @@ class Admin::Log::RequestSerializer < Fastframe::Frame
 
   association :performed_by, eager_loads: true do
     condition Admin::User do
-      fields :id, :full_name, :email, :status
+      field :id
+      field :full_name
+      field :email
+      field :status
     end
 
     condition Client::User do
-      fields :id, :full_name, :status
+      field :id
+      field :full_name
+      field :status
     end
 
     condition Establishment::User do
-      fields :id, :full_name, :status
+      field :id
+      field :full_name
+      field :status
     end
 
     condition Pos::Machine do
-      fields :id, :reference_number, :status
+      field :id
+      field :reference_number
+      field :status
     end
   end
 end
