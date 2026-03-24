@@ -27,8 +27,19 @@ class UserSerializer < Fastframe::Frame
 end
 
 UserSerializer.render_hash(user)
-# => { id: 1, name: "Jane", email: "jane@example.com", member_since: 2023,
-#      posts: [{ id: 1, title: "Hello World", published_at: "2024-01-15" }] }
+# => {
+#      id: 1,
+#      name: "Jane",
+#      email: "jane@example.com",
+#      member_since: 2023,
+#      posts: [
+#        {
+#          id: 1,
+#          title: "Hello World",
+#          published_at: "2024-01-15"
+#        }
+#      ]
+#    }
 ```
 
 ## Why Fastframe?
